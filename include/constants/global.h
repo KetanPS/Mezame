@@ -53,7 +53,6 @@
 #define OBJECT_EVENTS_COUNT 16
 #define MAIL_COUNT (10 + PARTY_SIZE)
 #define SECRET_BASES_COUNT 20
-#define TV_SHOWS_COUNT 25
 #define POKE_NEWS_COUNT 16
 #define PC_ITEMS_COUNT 50
 #define BAG_ITEMS_COUNT 30
@@ -166,5 +165,8 @@
 #define CONNECTION_EAST     4
 #define CONNECTION_DIVE     5
 #define CONNECTION_EMERGE   6
+
+#define SLOW_MOVEMENT_ON_STAIRS         TRUE
+#define FOLLOW_ME_IMPLEMENTED           FALSE    //for stairs movement. see ObjectMovingOnRockStairs in src/field_player_avatar.c
 
 #endif // GUARD_CONSTANTS_GLOBAL_H

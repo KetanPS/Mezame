@@ -1598,7 +1598,8 @@ void BattleScriptPushCursor(void)
 
 void BattleScriptPop(void)
 {
-    gBattlescriptCurrInstr = gBattleResources->battleScriptsStack->ptr[--gBattleResources->battleScriptsStack->size];
+    if (gBattleResources->battleScriptsStack->size != 0)
+        gBattlescriptCurrInstr = gBattleResources->battleScriptsStack->ptr[--gBattleResources->battleScriptsStack->size];
 }
 
 static bool32 IsGravityPreventingMove(u32 move)
@@ -10397,12 +10398,19 @@ bool32 SetIllusionMon(struct Pokemon *mon, u32 battlerId)
 {
     struct Pokemon *party, *partnerMon;
     s32 i, id;
+    u8 side, partyCount;
 
     gBattleStruct->illusion[battlerId].set = 1;
     if (GetMonAbility(mon) != ABILITY_ILLUSION)
         return FALSE;
 
     party = GetBattlerParty(battlerId);
+    side = GetBattlerSide(battlerId);
+    partyCount = side == B_SIDE_PLAYER ? gPlayerPartyCount : gEnemyPartyCount;
+
+    // If this pokemon is last in the party, ignore Illusion.
+    if (&party[partyCount - 1] == mon)
+        return FALSE;
 
     if (IsBattlerAlive(BATTLE_PARTNER(battlerId)))
         partnerMon = &party[gBattlerPartyIndexes[BATTLE_PARTNER(battlerId)]];
@@ -10642,7 +10650,7 @@ bool32 IsEntrainmentTargetOrSimpleBeamBannedAbility(u16 ability)
 void SortBattlersBySpeed(u8 *battlers, bool8 slowToFast)
 {
     int i, j, currSpeed, currBattler;
-    u16 speeds[4] = {0};
+    u16 speeds[MAX_BATTLERS_COUNT] = { 0 };
 
     for (i = 0; i < gBattlersCount; i++)
         speeds[i] = GetBattlerTotalSpeedStat(battlers[i]);

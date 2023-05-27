@@ -4917,6 +4917,9 @@ static void SetActionsAndBattlersTurnOrder(void)
                     turnOrderId++;
                 }
             }
+            gBattleMainFunc = CheckMegaEvolutionBeforeTurn;
+            gBattleStruct->mega.battlerId = 0;
+            return;
         }
         else
         {
@@ -4962,8 +4965,8 @@ static void SetActionsAndBattlersTurnOrder(void)
             }
         }
     }
-    gBattleMainFunc = CheckQuickClaw_CustapBerryActivation;
-    gBattleStruct->quickClawBattlerId = 0;
+    gBattleMainFunc = CheckMegaEvolutionBeforeTurn;
+    gBattleStruct->mega.battlerId = 0;
 }
 
 static void TurnValuesCleanUp(bool8 var0)
@@ -5012,97 +5015,49 @@ void SpecialStatusesClear(void)
     memset(&gSpecialStatuses, 0, sizeof(gSpecialStatuses));
 }
 
-static void PopulateArrayWithBattlers(u8* battlers)
+static void CheckMegaEvolutionBeforeTurn(void)
 {
-    u32 i;
-    for (i = 0; i < gBattlersCount; i++)
-        battlers[i] = i;
-}
-
-static bool32 TryDoMegaEvosBeforeMoves(void)
-{
-    if (!(gHitMarker & HITMARKER_RUN) && gBattleStruct->mega.toEvolve)
+    if (!(gHitMarker & HITMARKER_RUN))
     {
-        u32 i;
-        struct Pokemon* party;
-        struct Pokemon* mon;
-        u8 megaOrder[MAX_BATTLERS_COUNT];
-
-        PopulateArrayWithBattlers(megaOrder);
-        SortBattlersBySpeed(megaOrder, FALSE);
-        for (i = 0; i < gBattlersCount; i++) {
-            if (gBattleStruct->mega.toEvolve & gBitTable[megaOrder[i]]
-                && !(gProtectStructs[megaOrder[i]].noValidMoves))
+        while (gBattleStruct->mega.battlerId < gBattlersCount)
+        {
+            gActiveBattler = gBattlerAttacker = gBattleStruct->mega.battlerId;
+            gBattleStruct->mega.battlerId++;
+            if (gBattleStruct->mega.toEvolve & gBitTable[gActiveBattler]
+                && !(gProtectStructs[gActiveBattler].noValidMoves))
             {
-                gActiveBattler = gBattlerAttacker = megaOrder[i];
+                struct Pokemon *party = GetBattlerParty(gActiveBattler);
+                struct Pokemon *mon = &party[gBattlerPartyIndexes[gActiveBattler]];
+
                 gBattleStruct->mega.toEvolve &= ~(gBitTable[gActiveBattler]);
                 gLastUsedItem = gBattleMons[gActiveBattler].item;
-                party = GetBattlerParty(gActiveBattler);
-                mon = &party[gBattlerPartyIndexes[gActiveBattler]];
                 if (GetBattleFormChangeTargetSpecies(gActiveBattler, FORM_CHANGE_BATTLE_MEGA_EVOLUTION_MOVE) != SPECIES_NONE)
                     BattleScriptExecute(BattleScript_WishMegaEvolution);
                 else
                     BattleScriptExecute(BattleScript_MegaEvolution);
-                return TRUE;
+                return;
             }
         }
     }
 
-    #if B_MEGA_EVO_TURN_ORDER >= GEN_7
-        TryChangeTurnOrder(); // This will just do nothing if no mon has mega evolved.
+    #if B_MEGA_EVO_TURN_ORDER <= GEN_6
+        gBattleMainFunc = CheckChosenMoveForEffectsBeforeTurnStarts;
+        gBattleStruct->focusPunchBattlerId = 0;
+    #else
+        gBattleMainFunc = TryChangeTurnOrder; // This will just do nothing if no mon has mega evolved
     #endif
-    return FALSE;
-}
-
-static bool32 TryDoMoveEffectsBeforeMoves(void)
-{
-    if (!(gHitMarker & HITMARKER_RUN))
-    {
-        u32 i;
-        struct Pokemon* mon;
-        u8 battlers[MAX_BATTLERS_COUNT];
-
-        PopulateArrayWithBattlers(battlers);
-        SortBattlersBySpeed(battlers, FALSE);
-        for (i = 0; i < gBattlersCount; i++)
-        {
-            if (!(gBattleStruct->focusPunchBattlers & gBitTable[battlers[i]])
-                && !(gBattleMons[battlers[i]].status1 & STATUS1_SLEEP)
-                && !(gDisableStructs[battlers[i]].truantCounter)
-                && !(gProtectStructs[battlers[i]].noValidMoves))
-            {
-                gBattleStruct->focusPunchBattlers |= gBitTable[battlers[i]];
-                gActiveBattler = gBattlerAttacker = battlers[i];
-                switch (gChosenMoveByBattler[gActiveBattler])
-                {
-                case MOVE_FOCUS_PUNCH:
-                    BattleScriptExecute(BattleScript_FocusPunchSetUp);
-                    return TRUE;
-                case MOVE_BEAK_BLAST:
-                    BattleScriptExecute(BattleScript_BeakBlastSetUp);
-                    return TRUE;
-                case MOVE_SHELL_TRAP:
-                    BattleScriptExecute(BattleScript_ShellTrapSetUp);
-                    return TRUE;
-                }
-            }
-        }
-    }
-
-    return FALSE;
 }
 
 // In gen7, priority and speed are recalculated during the turn in which a pokemon mega evolves
 static void TryChangeTurnOrder(void)
 {
-    u32 i, j;
+    s32 i, j;
     for (i = 0; i < gBattlersCount - 1; i++)
     {
         for (j = i + 1; j < gBattlersCount; j++)
         {
-            u32 battler1 = gBattlerByTurnOrder[i];
-            u32 battler2 = gBattlerByTurnOrder[j];
-
+            u8 battler1 = gBattlerByTurnOrder[i];
+            u8 battler2 = gBattlerByTurnOrder[j];
             if (gActionsByTurnOrder[i] == B_ACTION_USE_MOVE
                 && gActionsByTurnOrder[j] == B_ACTION_USE_MOVE)
             {
@@ -5111,6 +5066,42 @@ static void TryChangeTurnOrder(void)
             }
         }
     }
+    gBattleMainFunc = CheckChosenMoveForEffectsBeforeTurnStarts;
+    gBattleStruct->focusPunchBattlerId = 0;
+}
+
+static void CheckChosenMoveForEffectsBeforeTurnStarts(void)
+{
+    u32 i;
+
+    if (!(gHitMarker & HITMARKER_RUN))
+    {
+        while (gBattleStruct->focusPunchBattlerId < gBattlersCount)
+        {
+            gActiveBattler = gBattlerAttacker = gBattleStruct->focusPunchBattlerId;
+            gBattleStruct->focusPunchBattlerId++;
+            if (!(gBattleMons[gActiveBattler].status1 & STATUS1_SLEEP)
+                && !(gDisableStructs[gBattlerAttacker].truantCounter)
+                && !(gProtectStructs[gActiveBattler].noValidMoves))
+            {
+                switch (gChosenMoveByBattler[gActiveBattler])
+                {
+                case MOVE_FOCUS_PUNCH:
+                    BattleScriptExecute(BattleScript_FocusPunchSetUp);
+                    return;
+                case MOVE_BEAK_BLAST:
+                    BattleScriptExecute(BattleScript_BeakBlastSetUp);
+                    return;
+                case MOVE_SHELL_TRAP:
+                    BattleScriptExecute(BattleScript_ShellTrapSetUp);
+                    return;
+                }
+            }
+        }
+    }
+
+    gBattleMainFunc = CheckQuickClaw_CustapBerryActivation;
+    gBattleStruct->quickClawBattlerId = 0;
 }
 
 static void CheckQuickClaw_CustapBerryActivation(void)
@@ -5165,8 +5156,6 @@ static void CheckQuickClaw_CustapBerryActivation(void)
     gCurrentTurnActionNumber = 0;
     gCurrentActionFuncId = gActionsByTurnOrder[0];
     gBattleStruct->dynamicMoveType = 0;
-    gBattleStruct->effectsBeforeUsingMoveDone = FALSE;
-    gBattleStruct->focusPunchBattlers = 0;
     for (i = 0; i < MAX_BATTLERS_COUNT; i++)
     {
         gBattleStruct->ateBoost[i] = FALSE;
@@ -5184,16 +5173,6 @@ static void RunTurnActionsFunctions(void)
 {
     if (gBattleOutcome != 0)
         gCurrentActionFuncId = B_ACTION_FINISHED;
-   
-    // Mega Evolve / Focus Punch-like moves after switching, items, running, but before using a move.
-    if (gCurrentActionFuncId == B_ACTION_USE_MOVE && !gBattleStruct->effectsBeforeUsingMoveDone)
-    {
-        if (TryDoMegaEvosBeforeMoves())
-            return;
-        else if (TryDoMoveEffectsBeforeMoves())
-            return;
-        gBattleStruct->effectsBeforeUsingMoveDone = TRUE;
-    }
 
     *(&gBattleStruct->savedTurnActionNumber) = gCurrentTurnActionNumber;
     sTurnActionsFuncsTable[gCurrentActionFuncId]();

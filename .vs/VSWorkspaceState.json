@@ -1,12 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\graphics\\pokemon",
-    "\\graphics\\pokemon\\igglybuff",
-    "\\graphics\\pokemon\\illumise",
-    "\\src",
-    "\\test"
+    "\\src"
   ],
-  "SelectedNode": "\\test\\move_effect_focus_punch.c",
+  "SelectedNode": "\\src\\battle_ai_util.c",
   "PreviewInSolutionExplorer": false
 }

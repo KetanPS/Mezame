@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
+    "\\graphics\\battle_terrain",
+    "\\graphics\\battle_terrain\\tall_grass",
     "\\src"
   ],
-  "SelectedNode": "\\src\\battle_ai_util.c",
+  "SelectedNode": "\\src\\battle_main.c",
   "PreviewInSolutionExplorer": false
 }

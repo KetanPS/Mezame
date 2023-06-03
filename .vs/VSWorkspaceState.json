@@ -3,8 +3,11 @@
     "",
     "\\graphics\\battle_terrain",
     "\\graphics\\battle_terrain\\tall_grass",
-    "\\src"
+    "\\include\\config",
+    "\\src",
+    "\\src\\data",
+    "\\src\\data\\text"
   ],
-  "SelectedNode": "\\src\\battle_main.c",
+  "SelectedNode": "\\src\\data\\text\\item_descriptions.h",
   "PreviewInSolutionExplorer": false
 }

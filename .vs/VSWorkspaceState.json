@@ -1,13 +1,13 @@
 {
   "ExpandedNodes": [
     "",
+    "\\graphics",
     "\\graphics\\battle_terrain",
+    "\\graphics\\battle_terrain\\cave",
     "\\graphics\\battle_terrain\\tall_grass",
-    "\\include\\config",
-    "\\src",
-    "\\src\\data",
-    "\\src\\data\\text"
+    "\\include",
+    "\\src"
   ],
-  "SelectedNode": "\\src\\data\\text\\item_descriptions.h",
+  "SelectedNode": "\\graphics\\battle_terrain\\cave\\palette.pal",
   "PreviewInSolutionExplorer": false
 }

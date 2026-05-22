@@ -470,7 +470,7 @@ bool32 AI_CanBattlerEscape(enum BattlerId battler)
 {
     enum HoldEffect holdEffect = gAiLogicData->holdEffects[battler];
 
-    if (GetConfig(CONFIG_GHOSTS_ESCAPE) >= GEN_6 && IS_BATTLER_OF_TYPE(battler, TYPE_GHOST))
+    if (GetConfig(B_GHOSTS_ESCAPE) >= GEN_6 && IS_BATTLER_OF_TYPE(battler, TYPE_GHOST))
         return TRUE;
     if (holdEffect == HOLD_EFFECT_SHED_SHELL)
         return TRUE;
@@ -497,10 +497,10 @@ bool32 IsBattlerTrapped(enum BattlerId battlerAtk, enum BattlerId battlerDef)
         && (B_SHADOW_TAG_ESCAPE >= GEN_4 && gAiLogicData->abilities[battlerDef] != ABILITY_SHADOW_TAG))
         return TRUE;
     if (AI_IsAbilityOnSide(battlerAtk, ABILITY_ARENA_TRAP)
-        && AI_IsBattlerGrounded(battlerAtk))
+        && AI_IsBattlerGrounded(battlerDef))
         return TRUE;
     if (AI_IsAbilityOnSide(battlerAtk, ABILITY_MAGNET_PULL)
-        && IS_BATTLER_OF_TYPE(battlerAtk, TYPE_STEEL))
+        && IS_BATTLER_OF_TYPE(battlerDef, TYPE_STEEL))
         return TRUE;
 
     if (gBattleTypeFlags & BATTLE_TYPE_TRAINER && CountUsablePartyMons(battlerDef) == 0)
@@ -1041,6 +1041,7 @@ static bool32 AI_IsMoveEffectInPlus(enum BattlerId battlerAtk, enum BattlerId ba
      && !(move == MOVE_ORDER_UP && gBattleStruct->battlerState[battlerAtk].commanderSpecies != SPECIES_NONE))
     {
         return FALSE;
+    }
 
     switch (GetMoveEffect(move))
     {
@@ -1323,7 +1324,7 @@ static bool32 AI_IsMoveEffectInMinus(enum BattlerId battlerAtk, enum BattlerId b
 // Checks if one of the moves has side effects or perks, assuming equal dmg or equal no of hits to KO
 enum MoveComparisonResult CompareMoveEffects(enum Move move1, enum Move move2, enum BattlerId battlerAtk, enum BattlerId battlerDef, s32 noOfHitsToKo)
 {
-    bool32 effect1, effect2;
+    bool32 effect1minus, effect1plus, effect2minus, effect2plus;
     enum Ability defAbility = gAiLogicData->abilities[battlerDef];
     enum Ability atkAbility = gAiLogicData->abilities[battlerAtk];
 
@@ -1341,18 +1342,24 @@ enum MoveComparisonResult CompareMoveEffects(enum Move move1, enum Move move2, e
     }
 
     // Check additional effects.
-    effect1 = AI_IsMoveEffectInMinus(battlerAtk, battlerDef, move1, noOfHitsToKo);
-    effect2 = AI_IsMoveEffectInMinus(battlerAtk, battlerDef, move2, noOfHitsToKo);
-    if (effect2 && !effect1)
+    gAiThinkingStruct->movesetIndex = GetMoveIndex(battlerAtk, move1);
+    effect1minus = AI_IsMoveEffectInMinus(battlerAtk, battlerDef, move1, noOfHitsToKo);
+    effect1plus = AI_IsMoveEffectInPlus(battlerAtk, battlerDef, move1, noOfHitsToKo);
+
+    gAiThinkingStruct->movesetIndex = GetMoveIndex(battlerAtk, move2);
+    effect2plus = AI_IsMoveEffectInPlus(battlerAtk, battlerDef, move2, noOfHitsToKo);
+    effect2minus = AI_IsMoveEffectInMinus(battlerAtk, battlerDef, move2, noOfHitsToKo);
+
+    gAiThinkingStruct->movesetIndex = 0;
+
+    if (effect2minus && !effect1minus)
         return MOVE_WON_COMPARISON;
-    if (effect1 && !effect2)
+    if (effect1minus && !effect2minus)
         return MOVE_LOST_COMPARISON;
 
-    effect1 = AI_IsMoveEffectInPlus(battlerAtk, battlerDef, move1, noOfHitsToKo);
-    effect2 = AI_IsMoveEffectInPlus(battlerAtk, battlerDef, move2, noOfHitsToKo);
-    if (effect2 && !effect1)
+    if (effect2plus && !effect1plus)
         return MOVE_LOST_COMPARISON;
-    if (effect1 && !effect2)
+    if (effect1plus && !effect2plus)
         return MOVE_WON_COMPARISON;
 
     return MOVE_NEUTRAL_COMPARISON;
@@ -1511,7 +1518,7 @@ bool32 CanEndureHit(enum BattlerId battler, enum BattlerId battlerTarget, enum M
 
     if (!DoesBattlerIgnoreAbilityChecks(battler, gAiLogicData->abilities[battler], move))
     {
-        if (GetConfig(CONFIG_STURDY) >= GEN_5 && gAiLogicData->abilities[battlerTarget] == ABILITY_STURDY)
+        if (GetConfig(B_STURDY) >= GEN_5 && gAiLogicData->abilities[battlerTarget] == ABILITY_STURDY)
             return TRUE;
         if (IsMimikyuDisguised(battlerTarget))
             return TRUE;
@@ -1930,7 +1937,7 @@ u32 AI_GetSwitchinWeather(enum BattlerId battler)
     case ABILITY_SAND_STREAM:
         return B_WEATHER_SANDSTORM;
     case ABILITY_SNOW_WARNING:
-        return GetConfig(CONFIG_SNOW_WARNING) >= GEN_9 ? B_WEATHER_SNOW : B_WEATHER_HAIL;
+        return GetConfig(B_SNOW_WARNING) >= GEN_9 ? B_WEATHER_SNOW : B_WEATHER_HAIL;
     default:
         return gBattleWeather;
     }
@@ -2069,7 +2076,7 @@ bool32 IsHazardClearingMove(enum Move move)
     case EFFECT_TIDY_UP:
         return TRUE;
     case EFFECT_DEFOG:
-        if (GetConfig(CONFIG_DEFOG_EFFECT_CLEARING) >= GEN_6)
+        if (GetConfig(B_DEFOG_EFFECT_CLEARING) >= GEN_6)
             return TRUE;
         break;
     default:
@@ -2170,10 +2177,8 @@ bool32 ShouldTryOHKO(enum BattlerId battlerAtk, enum BattlerId battlerDef, enum 
     if (!DoesBattlerIgnoreAbilityChecks(battlerAtk, atkAbility, move) && defAbility == ABILITY_STURDY)
         return FALSE;
 
-    if (((gBattleMons[battlerDef].volatiles.lockOn
-        && gBattleMons[battlerDef].volatiles.battlerWithSureHit == battlerAtk)
-        || atkAbility == ABILITY_NO_GUARD || defAbility == ABILITY_NO_GUARD)
-        && gBattleMons[battlerAtk].level >= gBattleMons[battlerDef].level)
+    bool32 sureHit = (gBattleMons[battlerAtk].volatiles.battlerWithSureHit == battlerDef + 1) || atkAbility == ABILITY_NO_GUARD || defAbility == ABILITY_NO_GUARD;
+    if (sureHit && gBattleMons[battlerAtk].level >= gBattleMons[battlerDef].level)
     {
         return TRUE;
     }
@@ -2347,19 +2352,24 @@ bool32 CanLowerStat(enum BattlerId battlerAtk, enum BattlerId battlerDef, struct
         case ABILITY_SPEED_BOOST:
             if (stat == STAT_SPEED)
                 return FALSE;
+            break;
         case ABILITY_HYPER_CUTTER:
             if (stat == STAT_ATK)
                 return FALSE;
+            break;
         case ABILITY_BIG_PECKS:
             if (stat == STAT_DEF)
                 return FALSE;
+            break;
         case ABILITY_ILLUMINATE:
-            if (GetConfig(CONFIG_ILLUMINATE_EFFECT) < GEN_9)
-                break;
+            if (GetConfig(B_ILLUMINATE_EFFECT) >= GEN_9 && stat == STAT_ACC)
+                return FALSE;
+            break;
         case ABILITY_KEEN_EYE:
         case ABILITY_MINDS_EYE:
             if (stat == STAT_ACC)
                 return FALSE;
+            break;
         case ABILITY_CONTRARY:
         case ABILITY_CLEAR_BODY:
         case ABILITY_WHITE_SMOKE:
@@ -3107,8 +3117,7 @@ bool32 IsSwitchOutEffect(enum BattleMoveEffects effect)
     switch (effect)
     {
     case EFFECT_TELEPORT:
-        if (GetConfig(CONFIG_TELEPORT_BEHAVIOR) >= GEN_8)
-            return TRUE;
+        return (GetConfig(B_TELEPORT_BEHAVIOR) >= GEN_8);
     case EFFECT_HIT_ESCAPE:
     case EFFECT_PARTING_SHOT:
     case EFFECT_BATON_PASS:
@@ -3350,10 +3359,14 @@ static u32 GetPoisonDamage(enum BattlerId battlerId)
 
 static bool32 DoesBattlerTakeSandstormDamage(enum BattlerId battlerId, enum Ability ability)
 {
+    if (!(AI_GetWeather() & B_WEATHER_SANDSTORM))
+        return FALSE;
+
     if (!IS_BATTLER_ANY_TYPE(battlerId, TYPE_ROCK, TYPE_GROUND, TYPE_STEEL)
       && ability != ABILITY_SAND_VEIL
       && ability != ABILITY_SAND_FORCE
       && ability != ABILITY_SAND_RUSH
+      && ability != ABILITY_MAGIC_GUARD
       && ability != ABILITY_OVERCOAT)
         return TRUE;
     return FALSE;
@@ -3361,10 +3374,14 @@ static bool32 DoesBattlerTakeSandstormDamage(enum BattlerId battlerId, enum Abil
 
 static bool32 DoesBattlerTakeHailDamage(enum BattlerId battlerId, enum Ability ability)
 {
+    if (!(AI_GetWeather() & B_WEATHER_HAIL))
+        return FALSE;
+
     if (!IS_BATTLER_OF_TYPE(battlerId, TYPE_ICE)
       && ability != ABILITY_SNOW_CLOAK
-      && ability != ABILITY_OVERCOAT
-      && ability != ABILITY_ICE_BODY)
+      && ability != ABILITY_ICE_BODY
+      && ability != ABILITY_MAGIC_GUARD
+      && ability != ABILITY_OVERCOAT)
         return TRUE;
     return FALSE;
 }
@@ -3380,7 +3397,7 @@ static u32 GetWeatherDamage(enum BattlerId battlerId)
 
     if (weather & B_WEATHER_SANDSTORM)
     {
-        if (BattlerAffectedBySandstorm(battlerId, ability)
+        if (DoesBattlerTakeSandstormDamage(battlerId, ability)
           && gBattleMons[battlerId].volatiles.semiInvulnerable != STATE_UNDERGROUND
           && gBattleMons[battlerId].volatiles.semiInvulnerable != STATE_UNDERWATER
           && holdEffect != HOLD_EFFECT_SAFETY_GOGGLES)
@@ -3392,7 +3409,7 @@ static u32 GetWeatherDamage(enum BattlerId battlerId)
     }
     if ((weather & B_WEATHER_HAIL) && ability != ABILITY_ICE_BODY)
     {
-        if (BattlerAffectedByHail(battlerId, ability)
+        if (DoesBattlerTakeHailDamage(battlerId, ability)
           && gBattleMons[battlerId].volatiles.semiInvulnerable != STATE_UNDERGROUND
           && gBattleMons[battlerId].volatiles.semiInvulnerable != STATE_UNDERWATER
           && holdEffect != HOLD_EFFECT_SAFETY_GOGGLES)
@@ -3424,8 +3441,11 @@ u32 GetBattlerSecondaryDamage(enum BattlerId battlerId)
 
 bool32 BattlerWillFaintFromWeather(enum BattlerId battler, enum Ability ability)
 {
-    if ((BattlerAffectedBySandstorm(battler, ability) || BattlerAffectedByHail(battler, ability))
-      && gBattleMons[battler].hp <= max(1, gBattleMons[battler].maxHP / 16))
+    if (gAiLogicData->holdEffects[battler] == HOLD_EFFECT_SAFETY_GOGGLES)
+        return FALSE;
+
+    if ((DoesBattlerTakeSandstormDamage(battler, ability) || DoesBattlerTakeHailDamage(battler, ability))
+      && gBattleMons[battler].hp <= max(1, GetNonDynamaxMaxHP(battler) / 16))
         return TRUE;
 
     return FALSE;
@@ -3836,11 +3856,19 @@ bool32 HasChoiceEffect(enum BattlerId battler)
 
 bool32 IsWakeupTurn(enum BattlerId battler)
 {
-    // Check if rest was used 2 turns ago
-    if ((gBattleMons[battler].status1 & STATUS1_SLEEP) == 1 && GetMoveEffect(FindMoveUsedXTurnsAgo(battler, 2)) == EFFECT_REST)
-        return TRUE;
-    else // no way to know
+    u32 sleepTurns = gBattleMons[battler].status1 & STATUS1_SLEEP;
+    u32 toSub;
+
+    if (sleepTurns == 0)
         return FALSE;
+
+    // Early Bird reduces the sleep timer twice as fast.
+    if (gAiLogicData->abilities[battler] == ABILITY_EARLY_BIRD)
+        toSub = 2;
+    else
+        toSub = 1;
+
+    return sleepTurns <= toSub;
 }
 
 bool32 AnyPartyMemberStatused(enum BattlerId battlerId, bool32 checkSoundproof)
@@ -3856,7 +3884,7 @@ bool32 AnyPartyMemberStatused(enum BattlerId battlerId, bool32 checkSoundproof)
         battlerOnField1 = gBattlerPartyIndexes[battlerId];
         battlerOnField2 = gBattlerPartyIndexes[GetPartnerBattler(battlerId)];
         // Check partner's status
-        if ((GetConfig(CONFIG_HEAL_BELL_SOUNDPROOF) == GEN_5
+        if ((GetConfig(B_HEAL_BELL_SOUNDPROOF) == GEN_5
             || gAiLogicData->abilities[BATTLE_PARTNER(battlerId)] != ABILITY_SOUNDPROOF
             || !checkSoundproof)
          && GetMonData(&party[battlerOnField2], MON_DATA_STATUS) != STATUS1_NONE
@@ -3870,8 +3898,8 @@ bool32 AnyPartyMemberStatused(enum BattlerId battlerId, bool32 checkSoundproof)
     }
 
     // Check attacker's status
-    if ((GetConfig(CONFIG_HEAL_BELL_SOUNDPROOF) == GEN_5
-      || GetConfig(CONFIG_HEAL_BELL_SOUNDPROOF) >= GEN_8
+    if ((GetConfig(B_HEAL_BELL_SOUNDPROOF) == GEN_5
+      || GetConfig(B_HEAL_BELL_SOUNDPROOF) >= GEN_8
       || gAiLogicData->abilities[battlerId] != ABILITY_SOUNDPROOF || !checkSoundproof)
      && GetMonData(&party[battlerOnField1], MON_DATA_STATUS) != STATUS1_NONE
      && ShouldCureStatus(battlerId, battlerId, gAiLogicData))
@@ -3882,7 +3910,7 @@ bool32 AnyPartyMemberStatused(enum BattlerId battlerId, bool32 checkSoundproof)
     {
         if (monIndex == battlerOnField1 || monIndex == battlerOnField2)
             continue;
-        if (GetConfig(CONFIG_HEAL_BELL_SOUNDPROOF) < GEN_5
+        if (GetConfig(B_HEAL_BELL_SOUNDPROOF) < GEN_5
          && checkSoundproof
          && GetMonAbility(&party[monIndex]) == ABILITY_SOUNDPROOF)
             continue;
@@ -5858,7 +5886,7 @@ bool32 ShouldTriggerAbility(enum BattlerId battlerAtk, enum BattlerId battlerDef
         {
         case ABILITY_LIGHTNING_ROD:
         case ABILITY_STORM_DRAIN:
-            if (GetConfig(CONFIG_REDIRECT_ABILITY_IMMUNITY) < GEN_5)
+            if (GetConfig(B_REDIRECT_ABILITY_IMMUNITY) < GEN_5)
                 return FALSE;
             else
                 return (BattlerStatCanRise(battlerDef, ability, STAT_SPATK) && HasMoveWithCategory(battlerDef, DAMAGE_CATEGORY_SPECIAL));

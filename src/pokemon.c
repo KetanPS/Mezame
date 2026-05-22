@@ -498,10 +498,10 @@ static const enum NationalDexOrder sHoennToNationalOrder[HOENN_DEX_COUNT - 1] =
     HOENN_TO_NATIONAL(DODRIO),
 #if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
     HOENN_TO_NATIONAL(BUDEW),
+#endif
     HOENN_TO_NATIONAL(ROSELIA),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
     HOENN_TO_NATIONAL(ROSERADE),
-#else
-    HOENN_TO_NATIONAL(ROSELIA),
 #endif
     HOENN_TO_NATIONAL(GULPIN),
     HOENN_TO_NATIONAL(SWALOT),
@@ -560,10 +560,10 @@ static const enum NationalDexOrder sHoennToNationalOrder[HOENN_DEX_COUNT - 1] =
     HOENN_TO_NATIONAL(DUSCLOPS),
 #if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
     HOENN_TO_NATIONAL(DUSKNOIR),
+#endif
     HOENN_TO_NATIONAL(TROPIUS),
+#if P_NEW_EVOS_IN_REGIONAL_DEX && P_GEN_4_CROSS_EVOS
     HOENN_TO_NATIONAL(CHINGLING),
-#else
-    HOENN_TO_NATIONAL(TROPIUS),
 #endif
     HOENN_TO_NATIONAL(CHIMECHO),
     HOENN_TO_NATIONAL(ABSOL),
@@ -633,10 +633,10 @@ static const enum NationalDexOrder sHoennToNationalOrder[HOENN_DEX_COUNT - 1] =
 
 const struct SpindaSpot gSpindaSpotGraphics[] =
 {
-    {.x = 16, .y =  7, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_0.1bpp")},
-    {.x = 40, .y =  8, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_1.1bpp")},
-    {.x = 22, .y = 25, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_2.1bpp")},
-    {.x = 34, .y = 26, .image = INCBIN_U16("graphics/pokemon/spinda/spots/spot_3.1bpp")}
+    {.x = 16, .y =  7, .image = INCGFX_U16("graphics/pokemon/spinda/spots/spot_0.png", ".1bpp", "-plain -data_width 2")},
+    {.x = 40, .y =  8, .image = INCGFX_U16("graphics/pokemon/spinda/spots/spot_1.png", ".1bpp", "-plain -data_width 2")},
+    {.x = 22, .y = 25, .image = INCGFX_U16("graphics/pokemon/spinda/spots/spot_2.png", ".1bpp", "-plain -data_width 2")},
+    {.x = 34, .y = 26, .image = INCGFX_U16("graphics/pokemon/spinda/spots/spot_3.png", ".1bpp", "-plain -data_width 2")}
 };
 
 // In Battle Palace, moves are chosen based on the pokemons nature rather than by the player
@@ -1708,6 +1708,7 @@ static void CreateEventMon(struct Pokemon *mon, u16 species, u8 level, u32 perso
 
     CreateMon(mon, species, level, personality, otId);
     SetMonData(mon, MON_DATA_MODERN_FATEFUL_ENCOUNTER, &isModernFatefulEncounter);
+    CalculateMonStats(mon);
 }
 
 enum TrainerPicID GetUnionRoomTrainerPic(void)
@@ -3926,6 +3927,9 @@ bool8 PokemonUseItemEffects(struct Pokemon *mon, enum Item item, u8 partyIndex, 
     u8 effectFlags;
     s8 evChange;
     u16 evCount;
+    u8 levelBefore;
+    bool8 didLevelUp = FALSE;
+    bool8 isLevelUpItem;
 
     // Determine the EV cap to use
     u32 maxAllowedEVs = !B_EV_ITEMS_CAP ? MAX_TOTAL_EVS : GetCurrentEVCap();
@@ -3947,6 +3951,8 @@ bool8 PokemonUseItemEffects(struct Pokemon *mon, enum Item item, u8 partyIndex, 
 
     // Get item effect
     itemEffect = GetItemEffect(item);
+    isLevelUpItem = (itemEffect[3] & ITEM3_LEVEL_UP) != 0;
+    levelBefore = GetMonData(mon, MON_DATA_LEVEL, NULL);
 
     // Do item effect
     for (i = 0; i < ITEM_EFFECT_ARG_START; i++)
@@ -4001,6 +4007,8 @@ bool8 PokemonUseItemEffects(struct Pokemon *mon, enum Item item, u8 partyIndex, 
                 {
                     SetMonData(mon, MON_DATA_EXP, &dataUnsigned);
                     CalculateMonStats(mon);
+                    if (GetMonData(mon, MON_DATA_LEVEL, NULL) > levelBefore)
+                        didLevelUp = TRUE;
                     retVal = FALSE;
                 }
             }
@@ -5521,9 +5529,9 @@ void AdjustFriendship(struct Pokemon *mon, u8 event)
     }
 }
 
-u8 CalculateFriendshipBonuses(struct Pokemon *mon, u32 modifier, enum HoldEffect itemHoldEffect)
+s32 CalculateFriendshipBonuses(struct Pokemon *mon, s32 modifier, enum HoldEffect itemHoldEffect)
 {
-    u32 bonus = 0;
+    s32 bonus = 0;
 
     if ((modifier > 0) && (itemHoldEffect == HOLD_EFFECT_FRIENDSHIP_UP))
         bonus += 150 * modifier / 100;
@@ -7226,7 +7234,7 @@ u16 GetSpeciesPreEvolution(u16 species)
 
         for (j = 0; evolutions[j].method != EVOLUTIONS_END; j++)
         {
-            if (SanitizeSpeciesId(evolutions[j].targetSpecies) == species)
+            if (IsSpeciesEnabled(evolutions[j].targetSpecies) && SanitizeSpeciesId(evolutions[j].targetSpecies) == species)
                 return i;
         }
     }

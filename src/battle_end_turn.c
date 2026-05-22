@@ -60,8 +60,8 @@ static bool32 HandleEndTurnVarious(enum BattlerId battler)
         if (gBattleMons[i].volatiles.throatChopTimer > 0)
             gBattleMons[i].volatiles.throatChopTimer--;
 
-        if (gBattleMons[i].volatiles.lockOn > 0)
-            gBattleMons[i].volatiles.lockOn--;
+        if (gBattleMons[i].volatiles.lockOn > 0 && --gBattleMons[i].volatiles.lockOn == 0)
+            gBattleMons[i].volatiles.battlerWithSureHit = 0;
 
         if (B_CHARGE < GEN_9 && gBattleMons[i].volatiles.chargeTimer > 0)
             gBattleMons[i].volatiles.chargeTimer--;
@@ -522,7 +522,7 @@ static bool32 HandleEndTurnBurn(enum BattlerId battler)
      && IsBattlerAlive(battler)
      && !IsAbilityAndRecord(battler, ability, ABILITY_MAGIC_GUARD))
     {
-        s32 burnDamage = GetNonDynamaxMaxHP(battler) / ((GetConfig(CONFIG_BURN_DAMAGE) >= GEN_7 || GetConfig(CONFIG_BURN_DAMAGE) == GEN_1) ? 16 : 8);
+        s32 burnDamage = GetNonDynamaxMaxHP(battler) / ((GetConfig(B_BURN_DAMAGE) >= GEN_7 || GetConfig(B_BURN_DAMAGE) == GEN_1) ? 16 : 8);
         if (ability == ABILITY_HEATPROOF)
         {
             if (burnDamage > (burnDamage / 2) + 1) // Record ability if the burn takes less damage than it normally would.
@@ -547,7 +547,7 @@ static bool32 HandleEndTurnFrostbite(enum BattlerId battler)
      && IsBattlerAlive(battler)
      && !IsAbilityAndRecord(battler, GetBattlerAbility(battler), ABILITY_MAGIC_GUARD))
     {
-        SetPassiveDamageAmount(battler, GetNonDynamaxMaxHP(battler) / ((GetConfig(CONFIG_BURN_DAMAGE) >= GEN_7 || GetConfig(CONFIG_BURN_DAMAGE) == GEN_1) ? 16 : 8));
+        SetPassiveDamageAmount(battler, GetNonDynamaxMaxHP(battler) / ((GetConfig(B_BURN_DAMAGE) >= GEN_7 || GetConfig(B_BURN_DAMAGE) == GEN_1) ? 16 : 8));
         BattleScriptExecute(BattleScript_FrostbiteTurnDmg);
         effect = TRUE;
     }

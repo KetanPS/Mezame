@@ -221,7 +221,6 @@ void TryClearRageAndFuryCutter(void);
 bool32 HasNoMonsToSwitch(enum BattlerId battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2);
 bool32 TryChangeBattleWeather(enum BattlerId battler, u32 battleWeatherId, enum Ability ability);
 bool32 TryChangeBattleTerrain(enum BattlerId battler, u32 statusFlag);
-bool32 CanAbilityBlockMove(enum BattlerId battlerAtk, enum BattlerId battlerDef, enum Ability abilityAtk, enum Ability abilityDef, u32 move, enum ResultOption option);
 bool32 CanTargetBlockPranksterMove(struct BattleContext *ctx, s32 movePriority);
 bool32 CanPsychicTerrainProtectTarget(struct BattleContext *ctx, s32 movePriority);
 bool32 CanMoveBeBlockedByTarget(struct BattleContext *ctx, s32 movePriority);
@@ -410,6 +409,7 @@ bool32 HasPartnerTrainer(enum BattlerId battler);
 bool32 IsAffectedByPowderMove(enum BattlerId battler, enum Ability ability, enum HoldEffect holdEffect);
 enum Move GetNaturePowerMove(void);
 void RemoveAbilityFlags(enum BattlerId battler);
+void RemoveRuinAbilityFlags(enum BattlerId battler);
 void CheckSetUnburden(enum BattlerId battler);
 bool32 IsDazzlingAbility(enum Ability ability);
 bool32 IsAllowedToUseBag(void);
@@ -427,5 +427,6 @@ void TryUpdateEvolutionTracker(enum EvolutionConditions evolutionCondition, u32 
 bool32 CanUseMoveConsecutively(enum BattlerId battler);
 void TryResetConsecutiveUseCounter(enum BattlerId battler);
 void SetOrClearRageVolatile(void);
+enum BattlerId GetTargetBySlot(enum BattlerId battlerAtk, enum BattlerId battlerDef);
 
 #endif // GUARD_BATTLE_UTIL_H

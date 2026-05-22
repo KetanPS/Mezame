@@ -216,7 +216,7 @@ static const struct WindowTemplate sStandardBattleWindowTemplates[] =
         .paletteNum = 5,
         .baseBlock = 0x0340,
     },
-      [B_WIN_PP] = {
+    [B_WIN_PP] = {
         .bg = 0,
         .tilemapLeft = 21,
         .tilemapTop = 55,
@@ -1369,4 +1369,3 @@ void DrawTerrainTypeBattleBackground(void)
         break;
     }
 }
-
